@@ -1,8 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
+import { ListPostsDto } from './dto/list-posts.dto';
 
-@Controller()
+@Controller('posts')
+@ApiTags('Posts')
 export class AppController {
   constructor(private readonly appService: AppService) { }
 
@@ -10,10 +12,10 @@ export class AppController {
   @ApiResponse({
     status: 200,
     description: 'Success',
-    type: String,
+    type: ListPostsDto,
   })
   @Get()
-  getHello(): any {
+  getHello(): ListPostsDto {
     return this.appService.getHello();
   }
 }
