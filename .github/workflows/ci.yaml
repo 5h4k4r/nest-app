@@ -93,6 +93,8 @@ jobs:
           cat kustomization.yaml
 
       - name: Commit files
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
