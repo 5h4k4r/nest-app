@@ -3,7 +3,7 @@ import { ListPostsDto } from './dto/list-posts.dto';
 
 @Injectable()
 export class AppService {
-  getHello(): ListPostsDto {
+  listPosts(): ListPostsDto {
     const listPostsDto: ListPostsDto = {
       items: [
         {

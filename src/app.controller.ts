@@ -3,7 +3,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { ListPostsDto } from './dto/list-posts.dto';
 
-@Controller('posts')
+@Controller()
 @ApiTags('Posts')
 export class AppController {
   constructor(private readonly appService: AppService) { }
@@ -14,8 +14,12 @@ export class AppController {
     description: 'Success',
     type: ListPostsDto,
   })
-  @Get()
-  getHello(): ListPostsDto {
-    return this.appService.getHello();
+  @Get('posts')
+  listPosts(): ListPostsDto {
+    return this.appService.listPosts();
+  }
+  @Get('')
+  getHello(): string {
+    return 'hello';
   }
 }
