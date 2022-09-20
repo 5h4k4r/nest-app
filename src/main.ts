@@ -12,12 +12,11 @@ async function bootstrap() {
     .setTitle('Posts example')
     .setDescription('The posts API description')
     .setVersion('1.0')
-    .addTag('posts')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('swagger', app, document);
 
   await app.listen(configService.get<number>('PORT') || 3000);
-  Logger.log('Listening on port: ' + configService.get('PORT'));
+  Logger.log('Listening on port: ' + (configService.get('PORT') || 3000));
 }
 bootstrap();
