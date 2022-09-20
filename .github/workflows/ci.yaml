@@ -1,22 +1,39 @@
-name: Publish Docker image
+name: Push Docker image and update kustomize
 
 on:
   push:
     branches:
-      - main
+      - "main"
+      - "staging"
+      - "dev"
     paths-ignore:
       - "*.md"
+      - ".vscode/**"
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-push:
+  push-to-docker:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     steps:
+      - name: Set env BRANCH
+        run: echo "BRANCH=$(echo $GITHUB_REF | cut -d'/' -f 3)" >> "$GITHUB_ENV"
+
+      - name: Set env env_name
+        run: |
+          if [[ $BRANCH == 'main' ]]; then
+              echo "env_name=prod" >> "$GITHUB_ENV"
+          else
+              echo env_name=$BRANCH >> "$GITHUB_ENV"
+          fi
+
+      - name: Echo environment
+        run: echo $env_name
+
       - name: Check out the repo
         uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -24,16 +41,62 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
-        with:
-          images: 5h4k4r/nest-k8s
-
       - name: Build and push Docker image
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        uses: docker/build-push-action@v3
         with:
-          context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |-
+            ${{ secrets.DOCKER_USERNAME }}/nest-k8s:latest
+            ${{ secrets.DOCKER_USERNAME }}/nest-k8s:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/nest-k8s:${{ env.env_name }}
+
+  update-kustomize-and-commit:
+    name: Update Kustomize and commit changes
+    runs-on: ubuntu-latest
+    needs: push-to-docker
+
+    steps:
+      - name: Set env BRANCH
+        run: echo "BRANCH=$(echo $GITHUB_REF | cut -d'/' -f 3)" >> "$GITHUB_ENV"
+
+      - name: Set env env_name
+        run: |
+          if [[ $BRANCH == 'main' ]]; then
+              echo "env_name=prod" >> "$GITHUB_ENV"
+          else
+              echo env_name=$BRANCH >> "$GITHUB_ENV"
+          fi
+
+      - name: Echo environment
+        run: echo $env_name
+
+      - name: Check out my other private repo
+        uses: actions/checkout@v3
+        with:
+          repository: 5h4k4r/nest-cd
+          token: ${{ secrets.PAT }}
+          ref: main
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "4.2.0"
+
+      - name: Update Kubernetes resources
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          echo $env_name
+          cd kubernetes/overlays/$env_name
+          kustomize edit set image $DOCKER_USERNAME/nest-k8s=$DOCKER_USERNAME/nest-k8s:$GITHUB_SHA
+          kustomize build
+          cat kustomization.yaml
+
+      - name: Commit files
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$DOCKER_USERNAME/nest-cd
+          git checkout main
+          git commit -am "Bump docker tag"
+          git push
