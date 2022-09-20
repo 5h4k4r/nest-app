@@ -4,7 +4,7 @@ import { PostDto } from './post.dto';
 export class ListPostsDto {
   @ApiProperty({
     isArray: true,
-    type: Array<PostDto>,
+    type: PostDto,
     example: <Array<PostDto>>[
       {
         description: 'post description',
